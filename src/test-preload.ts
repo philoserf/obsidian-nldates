@@ -5,4 +5,11 @@ mock.module("obsidian", () => ({
   Notice: class Notice {},
   PluginSettingTab: class PluginSettingTab {},
   Setting: class Setting {},
+  normalizePath: (path: string) => path,
+}));
+
+mock.module("obsidian-daily-notes-interface", () => ({
+  createDailyNote: () => {},
+  getAllDailyNotes: () => ({}),
+  getDailyNote: () => null,
 }));
