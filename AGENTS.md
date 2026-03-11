@@ -13,6 +13,7 @@ bun install              # Install dependencies
 bun run dev              # Watch mode with auto-rebuild
 bun run build            # Production build (runs check first)
 bun run check            # Run all checks (typecheck + biome)
+bun run audit            # Check for dependency vulnerabilities
 bun run typecheck        # TypeScript type checking only
 bun run lint             # Biome lint + format check
 bun run lint:fix         # Auto-fix lint and format issues

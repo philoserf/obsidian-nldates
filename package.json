@@ -13,6 +13,7 @@
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "format:check": "biome format .",
+    "audit": "bun audit --audit-level=critical",
     "test": "bun test",
     "deploy": "cp main.js manifest.json ~/source/philoserf/notes/.obsidian/plugins/obsidian-nldates/",
     "validate": "bun run scripts/validate-plugin.ts",
