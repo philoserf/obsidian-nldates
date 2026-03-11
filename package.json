@@ -1,9 +1,8 @@
 {
-  "name": "obsidian-nldates",
+  "name": "nldates",
   "version": "1.0.0",
   "description": "Plugin to parse natural language dates in Obsidian",
   "main": "main.js",
-  "type": "module",
   "author": "Mark Ayers (originally by Argentina Ortega Sainz)",
   "license": "MIT",
   "scripts": {
@@ -19,7 +18,7 @@
     "validate": "bun run scripts/validate-plugin.ts",
     "version": "bun run version-bump.ts",
     "test": "bun test",
-    "deploy": "cp main.js manifest.json ~/source/philoserf/notes/.obsidian/plugins/obsidian-nldates/"
+    "deploy": "cp main.js manifest.json ~/source/philoserf/notes/.obsidian/plugins/nldates/"
   },
   "dependencies": {
     "chrono-node": "github:liamcain/chrono",
