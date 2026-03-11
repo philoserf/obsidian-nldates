@@ -1,10 +1,10 @@
 {
-  "id": "nldates-obsidian",
+  "id": "obsidian-nldates",
   "name": "Natural Language Dates",
   "description": "Create date-links based on natural language",
   "version": "0.6.2",
-  "author": "Argentina Ortega Sainz",
-  "authorUrl": "https://argentinaos.com/",
+  "author": "Mark Ayers (originally by Argentina Ortega Sainz)",
+  "authorUrl": "https://github.com/philoserf",
   "isDesktopOnly": false,
   "minAppVersion": "1.0.0"
 }

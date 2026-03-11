@@ -1,13 +1,34 @@
-# Intellij
-*.iml
-.idea
-
-# npm
-node_modules
-
-# build
-main.js
+# Build output
 *.js.map
 
-# MacOS
+# Dependencies
+node_modules/
+
+# Bun
+.bun/
+bun.lockb
+
+# Environment
+.env
+.env.local
+
+# OS
 .DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Claude Code
+.claude/settings.local.json
+
+# Planning
+.planning/
+
+# Obsidian vault files
+.obsidian/
+.issues/

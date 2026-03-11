@@ -1,14 +1,14 @@
 import {
-  App,
-  Editor,
-  EditorPosition,
+  type App,
+  type Editor,
+  type EditorPosition,
   EditorSuggest,
-  EditorSuggestContext,
-  EditorSuggestTriggerInfo,
-  TFile,
+  type EditorSuggestContext,
+  type EditorSuggestTriggerInfo,
+  type TFile,
 } from "obsidian";
-import type NaturalLanguageDates from "src/main";
-import { generateMarkdownLink } from "src/utils";
+import type NaturalLanguageDates from "../main";
+import { generateMarkdownLink } from "../utils";
 
 interface IDateCompletion {
   label: string;
@@ -23,15 +23,16 @@ export default class DateSuggest extends EditorSuggest<IDateCompletion> {
     this.app = app;
     this.plugin = plugin;
 
-    // @ts-ignore
     this.scope.register(["Shift"], "Enter", (evt: KeyboardEvent) => {
-      // @ts-ignore
+      // @ts-expect-error accessing internal suggestions API
       this.suggestions.useSelectedItem(evt);
       return false;
     });
 
     if (this.plugin.settings.autosuggestToggleLink) {
-      this.setInstructions([{ command: "Shift", purpose: "Keep text as alias" }]);
+      this.setInstructions([
+        { command: "Shift", purpose: "Keep text as alias" },
+      ]);
     }
   }
 
@@ -52,7 +53,7 @@ export default class DateSuggest extends EditorSuggest<IDateCompletion> {
         .filter((item) => item.label.toLowerCase().startsWith(context.query));
     }
     if (context.query.match(/(next|last|this)/i)) {
-      const reference = context.query.match(/(next|last|this)/i)[1];
+      const reference = context.query.match(/(next|last|this)/i)?.[1];
       return [
         "week",
         "month",
@@ -70,7 +71,8 @@ export default class DateSuggest extends EditorSuggest<IDateCompletion> {
     }
 
     const relativeDate =
-      context.query.match(/^in ([+-]?\d+)/i) || context.query.match(/^([+-]?\d+)/i);
+      context.query.match(/^in ([+-]?\d+)/i) ||
+      context.query.match(/^([+-]?\d+)/i);
     if (relativeDate) {
       const timeDelta = relativeDate[1];
       return [
@@ -85,16 +87,22 @@ export default class DateSuggest extends EditorSuggest<IDateCompletion> {
       ].filter((items) => items.label.toLowerCase().startsWith(context.query));
     }
 
-    return [{ label: "Today" }, { label: "Yesterday" }, { label: "Tomorrow" }].filter(
-      (items) => items.label.toLowerCase().startsWith(context.query)
-    );
+    return [
+      { label: "Today" },
+      { label: "Yesterday" },
+      { label: "Tomorrow" },
+    ].filter((items) => items.label.toLowerCase().startsWith(context.query));
   }
 
   renderSuggestion(suggestion: IDateCompletion, el: HTMLElement): void {
     el.setText(suggestion.label);
   }
 
-  selectSuggestion(suggestion: IDateCompletion, event: KeyboardEvent | MouseEvent): void {
+  selectSuggestion(
+    suggestion: IDateCompletion,
+    event: KeyboardEvent | MouseEvent,
+  ): void {
+    if (!this.context) return;
     const { editor } = this.context;
 
     const includeAlias = event.shiftKey;
@@ -113,7 +121,7 @@ export default class DateSuggest extends EditorSuggest<IDateCompletion> {
       dateStr = generateMarkdownLink(
         this.app,
         dateStr,
-        includeAlias ? suggestion.label : undefined
+        includeAlias ? suggestion.label : undefined,
       );
     }
 
@@ -123,8 +131,8 @@ export default class DateSuggest extends EditorSuggest<IDateCompletion> {
   onTrigger(
     cursor: EditorPosition,
     editor: Editor,
-    file: TFile
-  ): EditorSuggestTriggerInfo {
+    _file: TFile,
+  ): EditorSuggestTriggerInfo | null {
     if (!this.plugin.settings.isAutosuggestEnabled) {
       return null;
     }
@@ -144,7 +152,7 @@ export default class DateSuggest extends EditorSuggest<IDateCompletion> {
         line: startPos.line,
         ch: startPos.ch - 1,
       },
-      startPos
+      startPos,
     );
 
     // Short-circuit if `@` as a part of a word (e.g. part of an email address)

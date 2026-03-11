@@ -1,6 +1,6 @@
-import { App, MarkdownView, Modal, Setting } from "obsidian";
-import { generateMarkdownLink } from "src/utils";
+import { type App, MarkdownView, Modal, Setting } from "obsidian";
 import type NaturalLanguageDates from "../main";
+import { generateMarkdownLink } from "../utils";
 
 export default class DatePickerModal extends Modal {
   plugin: NaturalLanguageDates;
@@ -35,7 +35,7 @@ export default class DatePickerModal extends Modal {
         parsedDateString = generateMarkdownLink(
           this.app,
           parsedDateString,
-          shouldIncludeAlias ? cleanDateInput : undefined
+          shouldIncludeAlias ? cleanDateInput : undefined,
         );
       }
 
@@ -73,13 +73,15 @@ export default class DatePickerModal extends Modal {
           });
         });
       new Setting(formEl).setName("Add as link?").addToggle((toggleEl) => {
-        toggleEl.setValue(this.plugin.settings.modalToggleLink).onChange((value) => {
-          insertAsLink = value;
-          this.plugin.settings.modalToggleLink = insertAsLink;
-          this.plugin.saveSettings();
+        toggleEl
+          .setValue(this.plugin.settings.modalToggleLink)
+          .onChange((value) => {
+            insertAsLink = value;
+            this.plugin.settings.modalToggleLink = insertAsLink;
+            this.plugin.saveSettings();
 
-          previewEl.setText(getDateStr());
-        });
+            previewEl.setText(getDateStr());
+          });
       });
 
       formEl.createDiv("modal-button-container", (buttonContainerEl) => {
@@ -94,11 +96,11 @@ export default class DatePickerModal extends Modal {
       });
 
       const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
-      const activeEditor = activeView.editor;
+      const activeEditor = activeView?.editor;
       formEl.addEventListener("submit", (e: Event) => {
         e.preventDefault();
         this.close();
-        activeEditor.replaceSelection(getDateStr());
+        activeEditor?.replaceSelection(getDateStr());
       });
     });
   }

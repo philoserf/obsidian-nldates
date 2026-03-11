@@ -1,5 +1,5 @@
-import { App, PluginSettingTab, Setting } from "obsidian";
-import NaturalLanguageDates from "./main";
+import { type App, PluginSettingTab, Setting } from "obsidian";
+import type NaturalLanguageDates from "./main";
 import { getLocaleWeekStart } from "./utils";
 
 export type DayOfWeek =
@@ -85,20 +85,23 @@ export class NLDSettingsTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.format = value || "YYYY-MM-DD";
             await this.plugin.saveSettings();
-          })
+          }),
       );
 
     new Setting(containerEl)
       .setName("Week starts on")
       .setDesc("Which day to consider as the start of the week")
       .addDropdown((dropdown) => {
-        dropdown.addOption("locale-default", `Locale default (${localeWeekStart})`);
+        dropdown.addOption(
+          "locale-default",
+          `Locale default (${localeWeekStart})`,
+        );
         localizedWeekdays.forEach((day, i) => {
           dropdown.addOption(weekdays[i], day);
         });
         dropdown.setValue(this.plugin.settings.weekStart.toLowerCase());
-        dropdown.onChange(async (value: DayOfWeek) => {
-          this.plugin.settings.weekStart = value;
+        dropdown.onChange(async (value) => {
+          this.plugin.settings.weekStart = value as DayOfWeek;
           await this.plugin.saveSettings();
         });
       });
@@ -117,7 +120,7 @@ export class NLDSettingsTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.timeFormat = value || "HH:mm";
             await this.plugin.saveSettings();
-          })
+          }),
       );
 
     new Setting(containerEl)
@@ -130,7 +133,7 @@ export class NLDSettingsTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.separator = value;
             await this.plugin.saveSettings();
-          })
+          }),
       );
 
     containerEl.createEl("h3", {
@@ -140,7 +143,7 @@ export class NLDSettingsTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName("Enable date autosuggest")
       .setDesc(
-        `Input dates with natural language. Open the suggest menu with ${this.plugin.settings.autocompleteTriggerPhrase}`
+        `Input dates with natural language. Open the suggest menu with ${this.plugin.settings.autocompleteTriggerPhrase}`,
       )
       .addToggle((toggle) =>
         toggle
@@ -148,13 +151,13 @@ export class NLDSettingsTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.isAutosuggestEnabled = value;
             await this.plugin.saveSettings();
-          })
+          }),
       );
 
     new Setting(containerEl)
       .setName("Add dates as link?")
       .setDesc(
-        "If enabled, dates created via autosuggest will be wrapped in [[wikilinks]]"
+        "If enabled, dates created via autosuggest will be wrapped in [[wikilinks]]",
       )
       .addToggle((toggle) =>
         toggle
@@ -162,7 +165,7 @@ export class NLDSettingsTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.autosuggestToggleLink = value;
             await this.plugin.saveSettings();
-          })
+          }),
       );
 
     new Setting(containerEl)
@@ -175,7 +178,7 @@ export class NLDSettingsTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.autocompleteTriggerPhrase = value.trim();
             await this.plugin.saveSettings();
-          })
+          }),
       );
   }
 }

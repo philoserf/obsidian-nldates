@@ -1,20 +1,19 @@
-import { MarkdownView, ObsidianProtocolData, Plugin } from "obsidian";
-
-import DatePickerModal from "./modals/date-picker";
-import NLDParser, { NLDResult } from "./parser";
-import { NLDSettingsTab, NLDSettings, DEFAULT_SETTINGS } from "./settings";
-import DateSuggest from "./suggest/date-suggest";
+import { MarkdownView, type ObsidianProtocolData, Plugin } from "obsidian";
 import {
-  getParseCommand,
   getCurrentDateCommand,
   getCurrentTimeCommand,
   getNowCommand,
+  getParseCommand,
 } from "./commands";
+import DatePickerModal from "./modals/date-picker";
+import NLDParser, { type NLDResult } from "./parser";
+import { DEFAULT_SETTINGS, type NLDSettings, NLDSettingsTab } from "./settings";
+import DateSuggest from "./suggest/date-suggest";
 import { getFormattedDate, getOrCreateDailyNote, parseTruthy } from "./utils";
 
 export default class NaturalLanguageDates extends Plugin {
-  private parser: NLDParser;
-  public settings: NLDSettings;
+  private parser!: NLDParser;
+  public settings!: NLDSettings;
 
   async onload(): Promise<void> {
     await this.loadSettings();
@@ -81,7 +80,10 @@ export default class NaturalLanguageDates extends Plugin {
     });
 
     this.addSettingTab(new NLDSettingsTab(this.app, this));
-    this.registerObsidianProtocolHandler("nldates", this.actionHandler.bind(this));
+    this.registerObsidianProtocolHandler(
+      "nldates",
+      this.actionHandler.bind(this),
+    );
     this.registerEditorSuggest(new DateSuggest(this.app, this));
 
     this.app.workspace.onLayoutReady(() => {
@@ -111,7 +113,7 @@ export default class NaturalLanguageDates extends Plugin {
     const date = this.parser.getParsedDate(dateString, this.settings.weekStart);
     const formattedString = getFormattedDate(date, format);
     if (formattedString === "Invalid date") {
-      console.debug("Input date " + dateString + " can't be parsed by nldates");
+      console.debug(`Input date ${dateString} can't be parsed by nldates`);
     }
 
     return {
@@ -141,7 +143,9 @@ export default class NaturalLanguageDates extends Plugin {
 
     if (date.moment.isValid()) {
       const dailyNote = await getOrCreateDailyNote(date.moment);
-      workspace.getLeaf(newPane).openFile(dailyNote);
+      if (dailyNote) {
+        workspace.getLeaf(newPane).openFile(dailyNote);
+      }
     }
   }
 }

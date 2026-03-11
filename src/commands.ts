@@ -1,8 +1,11 @@
 import { MarkdownView } from "obsidian";
+import type NaturalLanguageDates from "./main";
 import { adjustCursor, getSelectedText } from "./utils";
-import NaturalLanguageDates from "./main";
 
-export function getParseCommand(plugin: NaturalLanguageDates, mode: string): void {
+export function getParseCommand(
+  plugin: NaturalLanguageDates,
+  mode: string,
+): void {
   const { workspace } = plugin.app;
   const activeView = workspace.getActiveViewOfType(MarkdownView);
 
@@ -29,11 +32,11 @@ export function getParseCommand(plugin: NaturalLanguageDates, mode: string): voi
   //mode == "replace"
   let newStr = `[[${date.formattedString}]]`;
 
-  if (mode == "link") {
+  if (mode === "link") {
     newStr = `[${selectedText}](${date.formattedString})`;
-  } else if (mode == "clean") {
+  } else if (mode === "clean") {
     newStr = `${date.formattedString}`;
-  } else if (mode == "time") {
+  } else if (mode === "time") {
     const time = plugin.parseTime(selectedText);
 
     newStr = `${time.formattedString}`;
@@ -47,7 +50,7 @@ export function getParseCommand(plugin: NaturalLanguageDates, mode: string): voi
 export function insertMomentCommand(
   plugin: NaturalLanguageDates,
   date: Date,
-  format: string
+  format: string,
 ) {
   const { workspace } = plugin.app;
   const activeView = workspace.getActiveViewOfType(MarkdownView);

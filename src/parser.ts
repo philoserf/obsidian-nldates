@@ -1,12 +1,12 @@
-import chrono, { Chrono, Parser } from "chrono-node";
+import chrono, { Chrono, type Parser } from "chrono-node";
 import type { Moment } from "moment";
 
-import { DayOfWeek } from "./settings";
+import type { DayOfWeek } from "./settings";
 import {
-  ORDINAL_NUMBER_PATTERN,
   getLastDayOfMonth,
   getLocaleWeekStart,
   getWeekNumber,
+  ORDINAL_NUMBER_PATTERN,
   parseOrdinalNumberPattern,
 } from "./utils";
 
@@ -76,7 +76,9 @@ export default class NLDParser {
 
     const thisDateMatch = selectedText.match(/this\s([\w]+)/i);
     const nextDateMatch = selectedText.match(/next\s([\w]+)/i);
-    const lastDayOfMatch = selectedText.match(/(last day of|end of)\s*([^\n\r]*)/i);
+    const lastDayOfMatch = selectedText.match(
+      /(last day of|end of)\s*([^\n\r]*)/i,
+    );
     const midOf = selectedText.match(/mid\s([\w]+)/i);
 
     const referenceDate = weekdayIsCertain
@@ -113,8 +115,8 @@ export default class NLDParser {
 
     if (lastDayOfMatch) {
       const tempDate = parser.parse(lastDayOfMatch[2]);
-      const year = tempDate[0].start.get("year");
-      const month = tempDate[0].start.get("month");
+      const year = tempDate[0].start.get("year") ?? new Date().getFullYear();
+      const month = tempDate[0].start.get("month") ?? new Date().getMonth() + 1;
       const lastDay = getLastDayOfMonth(year, month);
 
       return parser.parseDate(`${year}-${month}-${lastDay}`, new Date(), {
