@@ -1,6 +1,6 @@
 {
   "name": "nldates",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Plugin to parse natural language dates in Obsidian",
   "main": "main.js",
   "author": "Mark Ayers (originally by Argentina Ortega Sainz)",

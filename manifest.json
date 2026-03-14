@@ -2,7 +2,7 @@
   "id": "nldates",
   "name": "Natural Language Dates",
   "description": "Create date-links based on natural language",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Mark Ayers (originally by Argentina Ortega Sainz)",
   "authorUrl": "https://github.com/philoserf",
   "isDesktopOnly": false,

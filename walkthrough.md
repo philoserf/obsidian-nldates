@@ -1,73 +1,100 @@
-# Natural Language Dates — Code Walkthrough
+# Natural Language Dates for Obsidian Walkthrough
 
-*2026-03-11T22:17:20Z by Showboat 0.6.1*
-<!-- showboat-id: 2b315c74-50e0-4234-b87c-655f5f4ab907 -->
+*2026-03-14T03:38:19Z by Showboat 0.6.1*
+<!-- showboat-id: a1464ea1-d3a2-4a9f-9c37-65c1a0fbeba4 -->
 
 ## Overview
 
-An Obsidian plugin that parses natural language into dates. Users type phrases
-like "next friday" or "in 3 days" and get formatted date strings, wikilinks, or
-daily notes. The plugin has four user-facing surfaces: commands, a date picker
-modal, an editor autosuggest, and a URI protocol handler.
+Natural Language Dates (nldates) is an Obsidian plugin that parses natural language date expressions — "tomorrow," "next week," "in 3 days" — and inserts formatted dates into notes. It provides commands, a date picker modal, and an inline autosuggest feature triggered by `@`.
 
-## File Structure
+**Key technologies:** TypeScript, Bun (build + test), chrono-node (NLP date parsing), moment.js (formatting), Obsidian Plugin API.
+
+**Entry point:** `src/main.ts` — the `NaturalLanguageDates` plugin class.
+
+**This project is archived. This is its final walkthrough.**
+
+## Architecture
 
 ```bash
-find src -name "*.ts" | sort && echo "---" && echo "build.ts" && echo "version-bump.ts" && echo "scripts/validate-plugin.ts"
+cat <<'TREE'
+src/
+  main.ts              Plugin class, commands, protocol handler
+  parser.ts            chrono-node wrapper with custom parsers
+  commands.ts          Command implementations (parse, insert date/time)
+  settings.ts          Settings interface, defaults, settings tab UI
+  utils.ts             Editor helpers, date formatting, ordinal parsing
+  chrono-node.d.ts     Type declarations for chrono-node
+  modals/
+    date-picker.ts     Modal dialog for date input with preview
+  suggest/
+    date-suggest.ts    Inline autosuggest (EditorSuggest)
+  test-preload.ts      Bun test mocks for obsidian modules
+  utils.test.ts        Unit tests for pure utility functions
+scripts/
+  validate-plugin.ts   Pre-release validation script
+build.ts               Bun bundler configuration
+version-bump.ts        Syncs version across manifest/versions files
+TREE
 ```
 
 ```output
-src/chrono-node.d.ts
-src/commands.ts
-src/main.ts
-src/modals/date-picker.ts
-src/parser.ts
-src/settings.ts
-src/suggest/date-suggest.ts
-src/test-preload.ts
-src/utils.test.ts
-src/utils.ts
----
-build.ts
-version-bump.ts
-scripts/validate-plugin.ts
+src/
+  main.ts              Plugin class, commands, protocol handler
+  parser.ts            chrono-node wrapper with custom parsers
+  commands.ts          Command implementations (parse, insert date/time)
+  settings.ts          Settings interface, defaults, settings tab UI
+  utils.ts             Editor helpers, date formatting, ordinal parsing
+  chrono-node.d.ts     Type declarations for chrono-node
+  modals/
+    date-picker.ts     Modal dialog for date input with preview
+  suggest/
+    date-suggest.ts    Inline autosuggest (EditorSuggest)
+  test-preload.ts      Bun test mocks for obsidian modules
+  utils.test.ts        Unit tests for pure utility functions
+scripts/
+  validate-plugin.ts   Pre-release validation script
+build.ts               Bun bundler configuration
+version-bump.ts        Syncs version across manifest/versions files
 ```
 
-**Source files** (under `src/`):
+**Data flow:** User types `@tomorrow` → `DateSuggest.onTrigger` detects the trigger phrase → `getDateSuggestions` builds completion list → user selects → `selectSuggestion` calls `plugin.parseDate` → `NLDParser.getParsedDate` delegates to chrono-node → formatted string inserted into editor.
 
-| File | Purpose |
-|------|---------|
-| `main.ts` | Plugin entry point — lifecycle, commands, API |
-| `parser.ts` | Wraps chrono-node with locale and custom parsers |
-| `settings.ts` | Settings interface, defaults, and settings tab UI |
-| `commands.ts` | Command implementations for parse/insert operations |
-| `utils.ts` | Shared helpers: formatting, links, ordinals, daily notes |
-| `utils.test.ts` | Unit tests for pure utility functions |
-| `modals/date-picker.ts` | Date picker modal dialog |
-| `suggest/date-suggest.ts` | Editor autosuggest provider |
-| `chrono-node.d.ts` | Type declarations for the chrono-node fork |
-| `test-preload.ts` | Bun test preload — mocks Obsidian and daily-notes APIs |
+## Build System
 
-**Build scripts** (project root):
-
-| File | Purpose |
-|------|---------|
-| `build.ts` | Bun bundler config (CJS output, externals) |
-| `version-bump.ts` | Syncs version across manifest.json and versions.json |
-| `scripts/validate-plugin.ts` | Pre-release validation checks |
-
-## Entry Point: `src/main.ts`
-
-The `NaturalLanguageDates` class extends Obsidian's `Plugin`. On load it:
-1. Loads settings from disk
-2. Registers 8 commands (parse date, parse time, insert current date/time, date picker)
-3. Adds a settings tab
-4. Registers the `obsidian://nldates` protocol handler
-5. Registers the editor autosuggest
-6. Defers parser initialization to `onLayoutReady` so locale is available
+The build uses Bun's native bundler. Entry point is `src/main.ts`, output is `./main.js` in CommonJS format. `obsidian` and `electron` are externalized. Minification is enabled for production builds but disabled in watch mode.
 
 ```bash
-sed -n "14,93p" src/main.ts
+cat build.ts
+```
+
+```output
+const watch = process.argv.includes("--watch");
+
+const result = await Bun.build({
+  entrypoints: ["src/main.ts"],
+  outdir: ".",
+  format: "cjs",
+  external: ["obsidian", "electron"],
+  minify: !watch,
+});
+
+if (!result.success) {
+  console.error("Build failed");
+  for (const message of result.logs) console.error(message);
+  process.exit(1);
+}
+
+if (watch) console.log("Watching for changes...");
+
+export {};
+```
+
+## Plugin Entry Point — main.ts
+
+The `NaturalLanguageDates` class extends Obsidian's `Plugin`. On load, it registers eight commands, a settings tab, a URL protocol handler (`obsidian://nldates`), and the inline date suggest. The parser is initialized lazily in `onLayoutReady` so the correct locale is available.
+
+```bash
+sed -n '14,93p' src/main.ts
 ```
 
 ```output
@@ -153,19 +180,13 @@ export default class NaturalLanguageDates extends Plugin {
   }
 ```
 
-The plugin exposes two public API methods — `parseDate()` and `parseTime()` — that
-other plugins can call via `app.plugins.getPlugin("nldates")`.
+The plugin exposes two public parsing methods that other plugins or internal commands consume. `parse()` is the core method; `parseDate()` and `parseTime()` are convenience wrappers that apply the user's configured format strings.
 
 ```bash
-sed -n "107,151p" src/main.ts
+sed -n '112,137p' src/main.ts
 ```
 
 ```output
-  /*
-    @param dateString: A string that contains a date in natural language, e.g. today, tomorrow, next week
-    @param format: A string that contains the formatting string for a Moment
-    @returns NLDResult: An object containing the date, a cloned Moment and the formatted string.
-  */
   parse(dateString: string, format: string): NLDResult {
     const date = this.parser.getParsedDate(dateString, this.settings.weekStart);
     const formattedString = getFormattedDate(date, format);
@@ -192,6 +213,15 @@ sed -n "107,151p" src/main.ts
     return this.parse(dateString, this.settings.timeFormat);
   }
 
+```
+
+The protocol handler lets external tools open daily notes via `obsidian://nldates?day=tomorrow&newPane=yes`. It parses the natural language day parameter and opens (or creates) the corresponding daily note.
+
+```bash
+sed -n '138,151p' src/main.ts
+```
+
+```output
   async actionHandler(params: ObsidianProtocolData): Promise<void> {
     const { workspace } = this.app;
 
@@ -208,21 +238,12 @@ sed -n "107,151p" src/main.ts
 }
 ```
 
-The `actionHandler` responds to `obsidian://nldates?day=tomorrow&newPane=yes` URIs —
-it parses the `day` parameter, resolves or creates the daily note, and opens it.
+## Parser — parser.ts
 
-## Parser: `src/parser.ts`
-
-The parser wraps [chrono-node](https://github.com/wanasit/chrono) (via a
-[liamcain fork](https://github.com/liamcain/chrono) that adds Obsidian-friendly tweaks).
-On construction it builds a locale-aware `Chrono` instance with two custom parsers:
-
-1. **Christmas** — matches "Christmas" and returns December 25
-2. **Ordinal numbers** — matches "first", "twenty-third", "15th", etc. and returns
-   the day number for the current month
+`NLDParser` wraps chrono-node with locale awareness and custom parsers. It builds a `Chrono` instance configured for the user's locale (en-gb gets little-endian date parsing), then adds two custom parsers: one for "Christmas" and one for ordinal day references like "the twenty-first" or "15th."
 
 ```bash
-sed -n "19,54p" src/parser.ts
+sed -n '19,54p' src/parser.ts
 ```
 
 ```output
@@ -264,23 +285,10 @@ function getConfiguredChrono(): Chrono {
 }
 ```
 
-`getParsedDate` is the core dispatch. It handles several special-case patterns
-before falling through to chrono's general parser:
-
-| Pattern | Behavior |
-|---------|----------|
-| `this week` | Resolves to the configured week-start day |
-| `next week` | Forward-dates from the week-start day |
-| `next month` / `next year` | Advances the reference date first, then re-parses |
-| `last day of` / `end of` | Calculates the actual last day of the target month |
-| `mid <month>` | Returns the 15th of the named month |
-| Everything else | Passes through to chrono with locale week-start config |
-
-The week-start preference is either a specific day or `"locale-default"`, which
-reads from `moment.localeData()._week.dow`.
+The `getParsedDate` method is the main parsing logic. It handles special cases — "this week," "next week/month/year," "last day of," and "mid" — before falling back to chrono-node's general parser. Week start preference is respected throughout.
 
 ```bash
-sed -n "63,134p" src/parser.ts
+sed -n '63,134p' src/parser.ts
 ```
 
 ```output
@@ -358,21 +366,12 @@ sed -n "63,134p" src/parser.ts
   }
 ```
 
-## Commands: `src/commands.ts`
+## Commands — commands.ts
 
-Four exported functions handle text insertion:
-
-- **`getParseCommand`** — reads selected text (or word at cursor), parses it,
-  and replaces with the result. The `mode` parameter controls output format:
-  `"replace"` → `[[date]]`, `"link"` → `[text](date)`, `"clean"` → plain text,
-  `"time"` → time only
-- **`insertMomentCommand`** — formats a Date with a Moment format string and
-  inserts at cursor
-- **`getNowCommand`** — inserts current date+time
-- **`getCurrentDateCommand`** / **`getCurrentTimeCommand`** — inserts just date or time
+Four exported functions implement the plugin's commands. `getParseCommand` handles the four parse modes (replace with wikilink, markdown link, clean text, or time). `insertMomentCommand` is a shared helper for the "insert current date/time/now" commands.
 
 ```bash
-sed -n "5,48p" src/commands.ts
+sed -n '5,48p' src/commands.ts
 ```
 
 ```output
@@ -422,15 +421,49 @@ export function getParseCommand(
 }
 ```
 
-## Settings: `src/settings.ts`
-
-The `NLDSettings` interface defines all persisted preferences:
-
 ```bash
-sed -n "15,43p" src/settings.ts
+sed -n '65,81p' src/commands.ts
 ```
 
 ```output
+export function getNowCommand(plugin: NaturalLanguageDates): void {
+  const format = `${plugin.settings.format}${plugin.settings.separator}${plugin.settings.timeFormat}`;
+  const date = new Date();
+  insertMomentCommand(plugin, date, format);
+}
+
+export function getCurrentDateCommand(plugin: NaturalLanguageDates): void {
+  const format = plugin.settings.format;
+  const date = new Date();
+  insertMomentCommand(plugin, date, format);
+}
+
+export function getCurrentTimeCommand(plugin: NaturalLanguageDates): void {
+  const format = plugin.settings.timeFormat;
+  const date = new Date();
+  insertMomentCommand(plugin, date, format);
+}
+```
+
+## Settings — settings.ts
+
+The `NLDSettings` interface defines all configurable options. Defaults use ISO date format (`YYYY-MM-DD`), 24-hour time (`HH:mm`), locale-default week start, and autosuggest enabled with `@` as the trigger.
+
+```bash
+sed -n '5,43p' src/settings.ts
+```
+
+```output
+export type DayOfWeek =
+  | "sunday"
+  | "monday"
+  | "tuesday"
+  | "wednesday"
+  | "thursday"
+  | "friday"
+  | "saturday"
+  | "locale-default";
+
 export interface NLDSettings {
   autosuggestToggleLink: boolean;
   autocompleteTriggerPhrase: string;
@@ -462,239 +495,25 @@ export const DEFAULT_SETTINGS: NLDSettings = {
 };
 ```
 
-The `NLDSettingsTab` renders the settings UI with three sections:
-1. **Parser settings** — date format, week start day
-2. **Hotkey formatting** — time format, separator between date and time
-3. **Date autosuggest** — enable/disable, wikilink toggle, trigger phrase
+## Date Autosuggest — suggest/date-suggest.ts
 
-Note: `modalToggleTime` is defined in `NLDSettings` and carried in `DEFAULT_SETTINGS`
-but is never exposed in the settings tab UI — it's a dead setting.
-
-## Utilities: `src/utils.ts`
-
-A collection of pure helpers and Obsidian integration functions.
+`DateSuggest` extends Obsidian's `EditorSuggest` to provide inline completions. The trigger is the configured phrase (default `@`). It generates contextual suggestions based on the query: time-prefixed queries get time offsets, "next/last/this" queries get weekday/period completions, numeric queries get relative date options, and the fallback is Today/Yesterday/Tomorrow.
 
 ```bash
-grep -n "^export" src/utils.ts
+sed -n '39,95p' src/suggest/date-suggest.ts
 ```
 
 ```output
-28:export default function getWordBoundaries(editor: Editor): EditorRange {
-42:export function getSelectedText(editor: Editor): string {
-52:export function adjustCursor(
-65:export function getFormattedDate(date: Date, format: string): string {
-69:export function getLastDayOfMonth(year: number, month: number) {
-73:export function parseTruthy(flag: string): boolean {
-77:export function getWeekNumber(
-83:export function getLocaleWeekStart(): Omit<DayOfWeek, "locale-default"> {
-89:export function generateMarkdownLink(
-113:export async function getOrCreateDailyNote(
-198:export const ORDINAL_NUMBER_PATTERN = `(?:${matchAnyPattern(
-202:export function parseOrdinalNumberPattern(match: string): number {
-```
+  getSuggestions(context: EditorSuggestContext): IDateCompletion[] {
+    const suggestions = this.getDateSuggestions(context);
+    if (suggestions.length) {
+      return suggestions;
+    }
 
-Key functions:
-
-- **`getWordBoundaries`** — uses CodeMirror's internal `wordAt` API to find the
-  word under the cursor. This is the only place the code reaches into CM internals
-  (suppressed with a biome-ignore for the `any` cast).
-- **`getSelectedText`** — returns the selection, or auto-selects the word at cursor
-- **`generateMarkdownLink`** — respects the user's vault preference for wikilinks
-  vs markdown links, including alias support. Reads the undocumented
-  `vault.getConfig("useMarkdownLinks")` API.
-- **`getOrCreateDailyNote`** — delegates to `obsidian-daily-notes-interface` for
-  daily note resolution and creation
-- **`ORDINAL_NUMBER_PATTERN`** and **`parseOrdinalNumberPattern`** — adapted from
-  chrono's source to handle "first" through "thirty-first" plus numeric ordinals
-  like "15th"
-
-```bash
-sed -n "28,50p" src/utils.ts
-```
-
-```output
-export default function getWordBoundaries(editor: Editor): EditorRange {
-  const cursor = editor.getCursor();
-
-  const pos = editor.posToOffset(cursor);
-  // biome-ignore lint/suspicious/noExplicitAny: accessing internal CodeMirror API
-  const word = (editor as any).cm.state.wordAt(pos);
-  const wordStart = editor.offsetToPos(word.from);
-  const wordEnd = editor.offsetToPos(word.to);
-  return {
-    from: wordStart,
-    to: wordEnd,
-  };
-}
-
-export function getSelectedText(editor: Editor): string {
-  if (editor.somethingSelected()) {
-    return editor.getSelection();
-  } else {
-    const wordBoundaries = getWordBoundaries(editor);
-    editor.setSelection(wordBoundaries.from, wordBoundaries.to); // TODO check if this needs to be updated/improved
-    return editor.getSelection();
+    // catch-all if there are no matches
+    return [{ label: context.query }];
   }
-}
-```
 
-```bash
-sed -n "89,111p" src/utils.ts
-```
-
-```output
-export function generateMarkdownLink(
-  app: App,
-  subpath: string,
-  alias?: string,
-) {
-  // biome-ignore lint/suspicious/noExplicitAny: accessing undocumented Obsidian vault API
-  const useMarkdownLinks = (app.vault as any).getConfig("useMarkdownLinks");
-  const path = normalizePath(subpath);
-
-  if (useMarkdownLinks) {
-    if (alias) {
-      return `[${alias}](${path.replace(/ /g, "%20")})`;
-    } else {
-      return `[${subpath}](${path})`;
-    }
-  } else {
-    if (alias) {
-      return `[[${path}|${alias}]]`;
-    } else {
-      return `[[${path}]]`;
-    }
-  }
-}
-```
-
-## Date Picker Modal: `src/modals/date-picker.ts`
-
-A modal dialog with three fields: a natural language date input, a Moment format
-override, and a link toggle. The date input live-previews the parsed result in
-the setting description. Typing a trailing `|` enables alias mode (inserts
-`[[date|alias]]`).
-
-```bash
-sed -n "13,59p" src/modals/date-picker.ts
-```
-
-```output
-  onOpen(): void {
-    let previewEl: HTMLElement;
-
-    let dateInput = "";
-    let momentFormat = this.plugin.settings.modalMomentFormat;
-    let insertAsLink = this.plugin.settings.modalToggleLink;
-
-    const getDateStr = () => {
-      let cleanDateInput = dateInput;
-      let shouldIncludeAlias = false;
-
-      if (dateInput.endsWith("|")) {
-        shouldIncludeAlias = true;
-        cleanDateInput = dateInput.slice(0, -1);
-      }
-
-      const parsedDate = this.plugin.parseDate(cleanDateInput || "today");
-      let parsedDateString = parsedDate.moment.isValid()
-        ? parsedDate.moment.format(momentFormat)
-        : "";
-
-      if (insertAsLink) {
-        parsedDateString = generateMarkdownLink(
-          this.app,
-          parsedDateString,
-          shouldIncludeAlias ? cleanDateInput : undefined,
-        );
-      }
-
-      return parsedDateString;
-    };
-
-    this.contentEl.createEl("form", {}, (formEl) => {
-      const dateInputEl = new Setting(formEl)
-        .setName("Date")
-        .setDesc(getDateStr())
-        .addText((textEl) => {
-          textEl.setPlaceholder("Today");
-
-          textEl.onChange((value) => {
-            dateInput = value;
-            previewEl.setText(getDateStr());
-          });
-
-          window.setTimeout(() => textEl.inputEl.focus(), 10);
-        });
-      previewEl = dateInputEl.descEl;
-```
-
-## Editor Autosuggest: `src/suggest/date-suggest.ts`
-
-`DateSuggest` extends Obsidian's `EditorSuggest` to provide inline date
-completion. It activates when the user types the trigger phrase (default `@`)
-at the start of a word.
-
-```bash
-sed -n "131,168p" src/suggest/date-suggest.ts
-```
-
-```output
-  onTrigger(
-    cursor: EditorPosition,
-    editor: Editor,
-    _file: TFile,
-  ): EditorSuggestTriggerInfo | null {
-    if (!this.plugin.settings.isAutosuggestEnabled) {
-      return null;
-    }
-
-    const triggerPhrase = this.plugin.settings.autocompleteTriggerPhrase;
-    const startPos = this.context?.start || {
-      line: cursor.line,
-      ch: cursor.ch - triggerPhrase.length,
-    };
-
-    if (!editor.getRange(startPos, cursor).startsWith(triggerPhrase)) {
-      return null;
-    }
-
-    const precedingChar = editor.getRange(
-      {
-        line: startPos.line,
-        ch: startPos.ch - 1,
-      },
-      startPos,
-    );
-
-    // Short-circuit if `@` as a part of a word (e.g. part of an email address)
-    if (precedingChar && /[`a-zA-Z0-9]/.test(precedingChar)) {
-      return null;
-    }
-
-    return {
-      start: startPos,
-      end: cursor,
-      query: editor.getRange(startPos, cursor).substring(triggerPhrase.length),
-    };
-  }
-```
-
-The suggestion engine provides context-sensitive completions:
-
-- **`time:` prefix** — offers time presets (now, +15 minutes, etc.)
-- **`next/last/this` prefix** — offers week/month/year/weekday completions
-- **Numeric prefix** — offers relative date suggestions ("in N days", "N weeks ago")
-- **Default** — Today, Yesterday, Tomorrow
-
-On selection, the trigger phrase and query are replaced with the formatted date.
-Shift+Enter preserves the original text as an alias in the wikilink.
-
-```bash
-sed -n "49,95p" src/suggest/date-suggest.ts
-```
-
-```output
   getDateSuggestions(context: EditorSuggestContext): IDateCompletion[] {
     if (context.query.match(/^time/)) {
       return ["now", "+15 minutes", "+1 hour", "-15 minutes", "-1 hour"]
@@ -744,106 +563,184 @@ sed -n "49,95p" src/suggest/date-suggest.ts
   }
 ```
 
-## Type Declarations: `src/chrono-node.d.ts`
-
-Hand-written type declarations for the chrono-node fork, which ships without
-its own types. Declares `Chrono`, `Parser`, `ParsedComponents`, `ParsedResult`,
-and the `en` configuration namespace.
+The `onTrigger` method controls when the suggest menu appears. It checks the trigger phrase is at the start of the typed sequence and is not mid-word (not preceded by an alphanumeric character or backtick — avoiding false triggers in email addresses and inline code).
 
 ```bash
-cat src/chrono-node.d.ts
+sed -n '131,168p' src/suggest/date-suggest.ts
 ```
 
 ```output
-declare module "chrono-node" {
-  interface ParsedComponents {
-    get(component: string): number | undefined;
-    isCertain(component: string): boolean;
-  }
+  onTrigger(
+    cursor: EditorPosition,
+    editor: Editor,
+    _file: TFile,
+  ): EditorSuggestTriggerInfo | null {
+    if (!this.plugin.settings.isAutosuggestEnabled) {
+      return null;
+    }
 
-  interface ParsedResult {
-    start: ParsedComponents;
-    end?: ParsedComponents;
-  }
+    const triggerPhrase = this.plugin.settings.autocompleteTriggerPhrase;
+    const startPos = this.context?.start || {
+      line: cursor.line,
+      ch: cursor.ch - triggerPhrase.length,
+    };
 
-  interface ParsingOption {
-    forwardDate?: boolean;
-    locale?: { weekStart?: number };
-  }
+    if (!editor.getRange(startPos, cursor).startsWith(triggerPhrase)) {
+      return null;
+    }
 
-  interface Parser {
-    pattern: () => RegExp;
-    extract: (
-      context: unknown,
-      match: RegExpMatchArray,
-    ) => Record<string, unknown>;
-  }
+    const precedingChar = editor.getRange(
+      {
+        line: startPos.line,
+        ch: startPos.ch - 1,
+      },
+      startPos,
+    );
 
-  class Chrono {
-    constructor(configuration?: unknown);
-    parsers: Parser[];
-    parse(
-      text: string,
-      referenceDate?: Date,
-      option?: ParsingOption,
-    ): ParsedResult[];
-    parseDate(text: string, referenceDate?: Date, option?: ParsingOption): Date;
-  }
+    // Short-circuit if `@` as a part of a word (e.g. part of an email address)
+    if (precedingChar && /[`a-zA-Z0-9]/.test(precedingChar)) {
+      return null;
+    }
 
-  const en: {
-    createCasualConfiguration(littleEndian?: boolean): unknown;
+    return {
+      start: startPos,
+      end: cursor,
+      query: editor.getRange(startPos, cursor).substring(triggerPhrase.length),
+    };
+  }
+```
+
+## Date Picker Modal — modals/date-picker.ts
+
+The modal provides a form-based date input with live preview. Users type a natural language date, choose a moment format, and toggle link wrapping. The preview updates on every keystroke. Appending `|` to the input triggers alias mode (e.g., `[[2026-01-15|next Thursday]]`).
+
+```bash
+sed -n '13,43p' src/modals/date-picker.ts
+```
+
+```output
+  onOpen(): void {
+    let previewEl: HTMLElement;
+
+    let dateInput = "";
+    let momentFormat = this.plugin.settings.modalMomentFormat;
+    let insertAsLink = this.plugin.settings.modalToggleLink;
+
+    const getDateStr = () => {
+      let cleanDateInput = dateInput;
+      let shouldIncludeAlias = false;
+
+      if (dateInput.endsWith("|")) {
+        shouldIncludeAlias = true;
+        cleanDateInput = dateInput.slice(0, -1);
+      }
+
+      const parsedDate = this.plugin.parseDate(cleanDateInput || "today");
+      let parsedDateString = parsedDate.moment.isValid()
+        ? parsedDate.moment.format(momentFormat)
+        : "";
+
+      if (insertAsLink) {
+        parsedDateString = generateMarkdownLink(
+          this.app,
+          parsedDateString,
+          shouldIncludeAlias ? cleanDateInput : undefined,
+        );
+      }
+
+      return parsedDateString;
+    };
+```
+
+## Utilities — utils.ts
+
+The utils module contains editor helpers, date formatting, ordinal parsing, markdown link generation, and daily note integration. Notable pieces:
+
+- `getWordBoundaries` accesses the internal CodeMirror API to find word boundaries at the cursor
+- `generateMarkdownLink` respects the user's vault preference for wikilinks vs markdown links
+- `getOrCreateDailyNote` bridges to the `obsidian-daily-notes-interface` library
+- Ordinal parsing supports both words ("twenty-first") and numeric suffixes ("21st") for all 31 days
+
+```bash
+sed -n '28,67p' src/utils.ts
+```
+
+```output
+export default function getWordBoundaries(editor: Editor): EditorRange {
+  const cursor = editor.getCursor();
+
+  const pos = editor.posToOffset(cursor);
+  // biome-ignore lint/suspicious/noExplicitAny: accessing internal CodeMirror API
+  const word = (editor as any).cm.state.wordAt(pos);
+  const wordStart = editor.offsetToPos(word.from);
+  const wordEnd = editor.offsetToPos(word.to);
+  return {
+    from: wordStart,
+    to: wordEnd,
   };
+}
 
-  export default { en };
-  export { Chrono, Parser };
+export function getSelectedText(editor: Editor): string {
+  if (editor.somethingSelected()) {
+    return editor.getSelection();
+  } else {
+    const wordBoundaries = getWordBoundaries(editor);
+    editor.setSelection(wordBoundaries.from, wordBoundaries.to); // TODO check if this needs to be updated/improved
+    return editor.getSelection();
+  }
+}
+
+export function adjustCursor(
+  editor: Editor,
+  cursor: EditorPosition,
+  newStr: string,
+  oldStr: string,
+): void {
+  const cursorOffset = newStr.length - oldStr.length;
+  editor.setCursor({
+    line: cursor.line,
+    ch: cursor.ch + cursorOffset,
+  });
+}
+
+export function getFormattedDate(date: Date, format: string): string {
+  return window.moment(date).format(format);
 }
 ```
 
-## Testing: `src/utils.test.ts` and `src/test-preload.ts`
-
-Tests use Bun's test runner with a preload script that mocks `obsidian` and
-`obsidian-daily-notes-interface`. Only the pure utility functions are tested:
-
 ```bash
-grep -c "test(" src/utils.test.ts
+sed -n '89,111p' src/utils.ts
 ```
 
 ```output
-15
+export function generateMarkdownLink(
+  app: App,
+  subpath: string,
+  alias?: string,
+) {
+  // biome-ignore lint/suspicious/noExplicitAny: accessing undocumented Obsidian vault API
+  const useMarkdownLinks = (app.vault as any).getConfig("useMarkdownLinks");
+  const path = normalizePath(subpath);
+
+  if (useMarkdownLinks) {
+    if (alias) {
+      return `[${alias}](${path.replace(/ /g, "%20")})`;
+    } else {
+      return `[${subpath}](${path})`;
+    }
+  } else {
+    if (alias) {
+      return `[[${path}|${alias}]]`;
+    } else {
+      return `[[${path}]]`;
+    }
+  }
+}
 ```
 
-```bash
-grep "describe\|test(" src/utils.test.ts
-```
+## Testing
 
-```output
-import { describe, expect, test } from "bun:test";
-describe("getLastDayOfMonth", () => {
-  test("returns 31 for January", () => {
-  test("returns 28 for February in a non-leap year", () => {
-  test("returns 29 for February in a leap year", () => {
-  test("returns 30 for April", () => {
-  test("returns 31 for December", () => {
-describe("parseTruthy", () => {
-  test("returns true for truthy strings", () => {
-  test("is case insensitive", () => {
-  test("returns false for falsy strings", () => {
-describe("getWeekNumber", () => {
-  test("returns 0 for sunday", () => {
-  test("returns 1 for monday", () => {
-  test("returns 6 for saturday", () => {
-describe("parseOrdinalNumberPattern", () => {
-  test("parses ordinal words", () => {
-  test("parses numeric ordinals", () => {
-  test("parses plain numbers", () => {
-  test("is case insensitive", () => {
-```
-
-15 tests across 4 suites covering `getLastDayOfMonth`, `parseTruthy`,
-`getWeekNumber`, and `parseOrdinalNumberPattern`. No tests for the parser,
-commands, modal, or autosuggest — those depend on Obsidian runtime APIs.
-
-The preload mock is minimal:
+Tests use Bun's test runner with a preload file that mocks the `obsidian` and `obsidian-daily-notes-interface` modules. Only pure utility functions are tested — the Obsidian-dependent code is not unit-testable outside the app.
 
 ```bash
 cat src/test-preload.ts
@@ -867,43 +764,22 @@ mock.module("obsidian-daily-notes-interface", () => ({
 }));
 ```
 
-## Build System: `build.ts`
-
-Uses Bun's native bundler. Produces a single `main.js` in CommonJS format
-(required by Obsidian's plugin loader). `obsidian` and `electron` are externalized.
-Minification is disabled in watch mode.
-
 ```bash
-cat build.ts
+bun test 2>&1 | sed 's/\[[0-9.]*ms\]/[Nms]/'
 ```
 
 ```output
-const watch = process.argv.includes("--watch");
+bun test v1.3.5 (1e86cebd)
 
-const result = await Bun.build({
-  entrypoints: ["src/main.ts"],
-  outdir: ".",
-  format: "cjs",
-  external: ["obsidian", "electron"],
-  minify: !watch,
-});
-
-if (!result.success) {
-  console.error("Build failed");
-  for (const message of result.logs) console.error(message);
-  process.exit(1);
-}
-
-if (watch) console.log("Watching for changes...");
-
-export {};
+ 15 pass
+ 0 fail
+ 37 expect() calls
+Ran 15 tests across 1 file. [Nms]
 ```
 
-## Version Management: `version-bump.ts`
+## Version Management
 
-Reads the version from `package.json` (via `npm_package_version` env), then
-updates both `manifest.json` and `versions.json` to match. Run via
-`bun run version` which sets the env automatically.
+`version-bump.ts` keeps `manifest.json` and `versions.json` in sync with `package.json`. The `versions.json` file maps plugin versions to minimum Obsidian app versions, used by Obsidian's update checker.
 
 ```bash
 cat version-bump.ts
@@ -931,57 +807,47 @@ writeFileSync("versions.json", `${JSON.stringify(versions, null, 2)}\n`);
 console.log(`Updated to version ${targetVersion}`);
 ```
 
-## Validation: `scripts/validate-plugin.ts`
+## Dependencies
 
-Pre-release validation that checks manifest fields, version consistency between
-`package.json` and `manifest.json`, runs `bun run check`, and does a production build.
+Two runtime dependencies:
+
+- **chrono-node** (forked at `liamcain/chrono`) — natural language date parsing engine
+- **obsidian-daily-notes-interface** — standardized access to Obsidian daily notes
+
+Dev dependencies: Biome (linting/formatting), Bun types, Node types, Obsidian API types, TypeScript.
+
+```bash
+sed -n '23,36p' package.json
+```
+
+```output
+  "dependencies": {
+    "chrono-node": "github:liamcain/chrono",
+    "obsidian-daily-notes-interface": "0.9.4"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.7",
+    "@types/bun": "^1.3.10",
+    "@types/node": "^25.5.0",
+    "obsidian": "^1.12.3",
+    "typescript": "^5.9.3"
+  },
+  "trustedDependencies": [
+    "chrono-node"
+  ]
+```
 
 ## Concerns
 
-### Code quality issues
+1. **chrono-node fork dependency.** The `chrono-node` dependency points to `github:liamcain/chrono`, a fork. This fork is unmaintained and diverges from upstream chrono-node. The custom type declarations in `src/chrono-node.d.ts` paper over type mismatches.
 
-1. **`mode` parameter is a stringly-typed union** (`commands.ts:7`). The `mode`
-   parameter to `getParseCommand` is `string` but only accepts `"replace"`,
-   `"link"`, `"clean"`, or `"time"`. Should be a string literal union type.
+2. **Internal API access.** Two `biome-ignore` suppressions mark deliberate use of undocumented APIs: `editor.cm.state.wordAt()` in `getWordBoundaries` (CodeMirror internals) and `app.vault.getConfig("useMarkdownLinks")` in `generateMarkdownLink`. Both are fragile across Obsidian updates.
 
-2. **`getWordBoundaries` crashes on empty lines** (`utils.ts:33`). If the cursor
-   is on an empty line or whitespace, `wordAt(pos)` returns `null`, causing a
-   `Cannot read properties of null` error. No null check.
+3. **No error handling in `getParsedDate`.** If chrono-node returns `null` from `parseDate`, the result propagates as `null` through `getFormattedDate` → `moment(null)`, producing "Invalid date." The invalid state is logged but not surfaced to the user.
 
-3. **`getSelectedText` has a side effect** (`utils.ts:47`). When nothing is
-   selected, it silently selects the word at cursor. The TODO comment acknowledges
-   this: `// TODO check if this needs to be updated/improved`.
+4. **`getSelectedText` side effect.** When nothing is selected, it calls `editor.setSelection()` to select the word at cursor — a mutation during what reads like a getter. The inline TODO acknowledges this.
 
-4. **Ordinal parser claims current month unconditionally** (`parser.ts:49`).
-   Typing "the fifteenth" always resolves to the current month. Combined with a
-   month name ("March fifteenth") chrono handles it, but bare ordinals may
-   surprise users late in the month.
+5. **Test coverage limited to pure functions.** Only `utils.test.ts` exists. The parser, commands, modal, and suggest modules have no tests. The Obsidian runtime dependency makes them hard to test, but the parser could be tested with `window.moment` mocked.
 
-5. **`modalToggleTime` is a dead setting** (`settings.ts:25`). Defined in the
-   interface, initialized in defaults, persisted to disk, but never read or
-   written anywhere in the codebase.
-
-6. **Duplicate weekday arrays** — `daysOfWeek` in `utils.ts:18` and `weekdays`
-   in `settings.ts:45` are identical arrays serving different purposes. One
-   shared constant would suffice.
-
-### Dependency concerns
-
-7. **`obsidian-daily-notes-interface`** is unmaintained (last commit 2021). It
-   works, but is a risk for future Obsidian API changes. This is tracked as
-   GitHub issue #19.
-
-8. **`chrono-node` fork** — the `liamcain/chrono` fork may drift from upstream.
-   The hand-written type declarations (`chrono-node.d.ts`) cover only the
-   subset of the API actually used, which is fine, but they'll need manual
-   updates if the fork changes.
-
-### Missing test coverage
-
-9. **No parser tests** — the most complex module (`parser.ts`) has zero test
-   coverage. The special-case matching for "this week", "next month", "last day
-   of", and "mid" would benefit from regression tests.
-
-10. **No autosuggest tests** — the suggestion filtering logic in
-    `date-suggest.ts` is pure enough to test but isn't covered.
+6. **`modalToggleTime` setting is defined but never used.** It appears in `NLDSettings` and `DEFAULT_SETTINGS` but no code reads it.
 
